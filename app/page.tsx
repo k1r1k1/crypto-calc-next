@@ -6,12 +6,16 @@ export const metadata: Metadata = {
   title: 'Crypto calc - Main',
 }
 
-const Home = async () => {
+interface Props {
+  pairs?: string[] | string;
+}
+
+const Home = async ({ pairs }: any) => {
   const fiatData = await getFiat()
-  const cryptoData = await getCryptos(null, undefined)
+  const cryptoData = await getCryptos(null, pairs && pairs[1] || undefined)
 
   return (
-    <Calculator {...{ cryptoData, fiatData } } />
+    <Calculator {...{ cryptoData, fiatData, pairs } } />
   );
 }
 

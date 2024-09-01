@@ -4,22 +4,30 @@ import { getCryptos } from "@/app/serverActions/cmcActions";
 import { Crypto, Currency } from "@/app/types";
 import { ChangeEvent, useEffect, useState, lazy, Suspense } from "react";
 import { useFormState } from "react-dom";
+import Select from "../Select";
 
-const ErrorToast = lazy(() => import('./ErrorToast'));
+const Toast = lazy(() => import('../Toast'));
 
 interface CalcInterface {
   cryptoData: [Crypto];
   fiatData: [Currency];
+  pairs?: string[] | string;
 }
 
-const Calculator = ({ cryptoData, fiatData }: CalcInterface) => {
-  const [fiatState, setFiat] = useState('USD')
+const Calculator = ({ cryptoData, fiatData, pairs }: CalcInterface) => {
+  const defaultCrypto = pairs && pairs[0] || 'BTC'
+  const defaultFiat = pairs && pairs[1] || 'USD'
+
+  const [fiatState, setFiat] = useState(defaultFiat)
+  const [cryptoState, setCrypto] = useState(defaultCrypto)
   const [fiatStateNumber, setFiatNumber] = useState(0)
-  const [cryptoState, setCrypto] = useState('BTC')
   const [cryptoStateNumber, setCryptoNumber] = useState(1)
+
+  const [showCopyToast, setCopyToast] = useState(false)
+
   const [isBrowser, setIsBrowser] = useState(false)
 
-  useEffect(() => { // fix ErrorToast
+  useEffect(() => { // fix Toast ref
     setIsBrowser(typeof document !== "undefined")
   }, [])
 
@@ -39,22 +47,29 @@ const Calculator = ({ cryptoData, fiatData }: CalcInterface) => {
   )
 
   const fiatSummary = (currentCrypto?.quote[fiatState]?.price || 0) * cryptoStateNumber
-  // const cryptoSummary = fiatStateNumber / (currentCrypto?.quote[fiatState]?.price || 0)
 
   useEffect(() => {
     setFiatNumber(fiatSummary)
   }, [fiatSummary])
 
   const handleCryptoNumber = (e: ChangeEvent<HTMLInputElement>) => {
+    if (isNaN(Number(e.target.value))) return
     const num = Number(e.target.value || '0')
     setCryptoNumber(num)
     setFiatNumber((currentCrypto?.quote[fiatState]?.price || 0) * num)
   }
 
   const handleFiatNumber = (e: ChangeEvent<HTMLInputElement>) => {
+    if (isNaN(Number(e.target.value))) return
     const num = Number(e.target.value || '0')
     setFiatNumber(num)
     setCryptoNumber(num / (currentCrypto?.quote[fiatState]?.price || 0))
+  }
+
+  const handleCopyClick = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/calc/${cryptoState}-${fiatState}`)
+    setCopyToast(true)
+    setTimeout(() => setCopyToast(false), 6000)
   }
 
   return (
@@ -66,20 +81,11 @@ const Calculator = ({ cryptoData, fiatData }: CalcInterface) => {
           <label className="label mb-4 mx-2">Pick currencies, change values</label>
 
           <div className="d-flex">
-            <div className="mb-3 w-25">
-              <label htmlFor="disabledSelect" className="form-label">Pick crypto</label>
-              <select
-                id="select"
-                className="form-select"
-                aria-label="Default select example"
-                onChange={handleCryptoChange}
-                defaultValue={cryptoState}
-              >
-                {updatedCryptos?.map(({ id, name, symbol }: Crypto) => (
-                  <option key={`select-1-${id}`} value={symbol}>{`[${symbol}]: ${name}`}</option>
-                ))}
-              </select>
-            </div>
+            <Select
+              handleChange={handleCryptoChange}
+              items={updatedCryptos}
+              value={cryptoState}
+            />
             <div className="d-flex align-items-end mx-5 mb-3">
               <input
                 type="text"
@@ -92,20 +98,11 @@ const Calculator = ({ cryptoData, fiatData }: CalcInterface) => {
           </div>
 
           <div className="d-flex">
-            <div className="mb-3 w-25">
-              <label htmlFor="disabledSelect" className="form-label">Pick fiat</label>
-              <select
-                id="select"
-                className="form-select"
-                aria-label="Default select example"
-                onChange={handleFiatChange}
-                defaultValue={fiatState}
-              >
-                {fiatData?.map(({ id, name, symbol }: Currency) => (
-                  <option key={`select-2-${id}`} value={symbol}>{`[${symbol}]: ${name}`}</option>
-                ))}
-              </select>
-            </div>
+            <Select
+              handleChange={handleFiatChange}
+              items={fiatData}
+              value={fiatState}
+            />
             <div className="d-flex align-items-end mx-5 mb-3">
               <input
                 type="text"
@@ -118,11 +115,27 @@ const Calculator = ({ cryptoData, fiatData }: CalcInterface) => {
           </div>
 
         </fieldset>
+
+        <button className="btn w-25" type="button" onClick={handleCopyClick}>
+          Share
+        </button>
       </div>
 
       {(!cryptoData || !fiatData) && isBrowser && (
         <Suspense>
-          <ErrorToast />
+          <Toast
+            type="ERROR"
+            message="Unable to get data from API"
+          />
+        </Suspense>
+      )}
+
+      {showCopyToast && (
+        <Suspense>
+          <Toast
+            type="INFO"
+            message="Link copied to clipboard!"
+          />
         </Suspense>
       )}
 
