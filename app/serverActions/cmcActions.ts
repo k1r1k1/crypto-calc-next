@@ -1,24 +1,23 @@
 'use server'
- 
-// import { redirect } from 'next/navigation'
 
 const requestHeaders: HeadersInit = new Headers()
 requestHeaders.set('Content-Type', 'application/json;charset=utf-8')
 requestHeaders.set('X-CMC_PRO_API_KEY', process.env.API_CMC_KEY || '')
 
-export async function getCryptos(prevState: any, fiat: string | undefined) {
-  console.log('SERVER', { prevState, fiat })
-  const res = await fetch(`https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=20${fiat ? `&convert=${fiat}` : ''}`, {
+export async function getCryptos(_: any, fiat: string | undefined) {
+  return fetch(`https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=20${fiat ? `&convert=${fiat}` : ''}`, {
     headers: requestHeaders
   })
+    .then(resp => resp.json())
+    .then(resp => resp.data)
+    .catch(e => e)
+}
 
-  const response = await res.json()
-
-//   if (!res.ok) {
-//     return { message: 'Please enter a valid email' }
-//   }
-
-//   redirect('/dashboard')
-
-  return response.data
+export async function getFiat() {
+  return fetch('https://pro-api.coinmarketcap.com/v1/fiat/map?limit=20', {
+    headers: requestHeaders
+  })
+    .then(resp => resp.json())
+    .then(resp => resp.data)
+    .catch(e => e)
 }

@@ -1,46 +1,29 @@
 "use client"
 
 import { getCryptos } from "@/app/serverActions/cmcActions";
-import { ChangeEvent, useEffect, useState } from "react";
+import { Crypto, Currency } from "@/app/types";
+import { ChangeEvent, useEffect, useState, lazy, Suspense } from "react";
 import { useFormState } from "react-dom";
 
-type Currency = {
-  id: number;
-  name: string;
-  symbol: string;
-}
-
-type Crypto = Currency & {
-  quote: {
-    USD: {
-      price: number;
-    }
-  }
-}
-
-type Status = {
-  error_code: number | null;
-  error_message: string | null;
-}
+const ErrorToast = lazy(() => import('./ErrorToast'));
 
 interface CalcInterface {
-  // cryptoData: [Crypto];
+  cryptoData: [Crypto];
   fiatData: [Currency];
-  // cryptoStatus: Status;
-  fiatStatus: Status;
 }
 
-const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
+const Calculator = ({ cryptoData, fiatData }: CalcInterface) => {
   const [fiatState, setFiat] = useState('USD')
-  const [fiatStateNumber, setFiatNumber] = useState(1)
+  const [fiatStateNumber, setFiatNumber] = useState(0)
   const [cryptoState, setCrypto] = useState('BTC')
   const [cryptoStateNumber, setCryptoNumber] = useState(1)
+  const [isBrowser, setIsBrowser] = useState(false)
 
-  const [updatedCryptos, updateCryptos] = useFormState(getCryptos, null)
+  useEffect(() => { // fix ErrorToast
+    setIsBrowser(typeof document !== "undefined")
+  }, [])
 
-  useEffect(() => {
-    updateCryptos(fiatState)
-  }, [fiatState, updateCryptos])
+  const [updatedCryptos, updateCryptos] = useFormState(getCryptos, cryptoData)
 
   const handleCryptoChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setCrypto(e.target.value)
@@ -48,23 +31,30 @@ const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
 
   const handleFiatChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setFiat(e.target.value)
+    updateCryptos(e.target.value)
   }
 
   const currentCrypto = updatedCryptos?.find((item: Crypto) =>
     item.symbol === cryptoState
   )
 
-  const cryptoSummary = (currentCrypto?.quote[fiatState]?.price || 1) * cryptoStateNumber
-  const fiatSummary = fiatStateNumber / (currentCrypto?.quote[fiatState]?.price || 1)
+  const fiatSummary = (currentCrypto?.quote[fiatState]?.price || 0) * cryptoStateNumber
+  // const cryptoSummary = fiatStateNumber / (currentCrypto?.quote[fiatState]?.price || 0)
+
+  useEffect(() => {
+    setFiatNumber(fiatSummary)
+  }, [fiatSummary])
 
   const handleCryptoNumber = (e: ChangeEvent<HTMLInputElement>) => {
-    setCryptoNumber(Number(e.target.value || '0'))
-    // setFiatNumber((currentCrypto?.quote[fiatState]?.price || 1) * cryptoStateNumber)
+    const num = Number(e.target.value || '0')
+    setCryptoNumber(num)
+    setFiatNumber((currentCrypto?.quote[fiatState]?.price || 0) * num)
   }
 
   const handleFiatNumber = (e: ChangeEvent<HTMLInputElement>) => {
-    setFiatNumber(Number(e.target.value || '0'))
-    // setCryptoNumber(fiatStateNumber / currentCrypto?.quote[fiatState]?.price || 1)
+    const num = Number(e.target.value || '0')
+    setFiatNumber(num)
+    setCryptoNumber(num / (currentCrypto?.quote[fiatState]?.price || 0))
   }
 
   return (
@@ -85,12 +75,9 @@ const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
                 onChange={handleCryptoChange}
                 defaultValue={cryptoState}
               >
-
                 {updatedCryptos?.map(({ id, name, symbol }: Crypto) => (
                   <option key={`select-1-${id}`} value={symbol}>{`[${symbol}]: ${name}`}</option>
                 ))}
-
-                <option value="BTC">[BTC]: Bitcoin</option>
               </select>
             </div>
             <div className="d-flex align-items-end mx-5 mb-3">
@@ -98,7 +85,7 @@ const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
                 type="text"
                 className="form-control"
                 aria-describedby="cryptoAmount"
-                defaultValue={fiatStateNumber}
+                value={cryptoStateNumber}
                 onChange={handleCryptoNumber}
               />
             </div>
@@ -112,14 +99,11 @@ const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
                 className="form-select"
                 aria-label="Default select example"
                 onChange={handleFiatChange}
-                defaultValue={fiatStateNumber}
+                defaultValue={fiatState}
               >
-
-                {fiatData.map(({ id, name, symbol }: Currency) => (
+                {fiatData?.map(({ id, name, symbol }: Currency) => (
                   <option key={`select-2-${id}`} value={symbol}>{`[${symbol}]: ${name}`}</option>
                 ))}
-
-                <option value="0">Open this select menu</option>
               </select>
             </div>
             <div className="d-flex align-items-end mx-5 mb-3">
@@ -127,7 +111,7 @@ const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
                 type="text"
                 className="form-control"
                 aria-describedby="fiatAmount"
-                defaultValue={cryptoSummary}
+                value={fiatStateNumber}
                 onChange={handleFiatNumber}
               />
             </div>
@@ -136,8 +120,12 @@ const Calculator = ({ fiatData, fiatStatus }: CalcInterface) => {
         </fieldset>
       </div>
 
-      {/* {loading && <span>Loading...</span>}*/}
-      {!!fiatStatus.error_code && (<span className="text-danger">{fiatStatus.error_message}</span>)}
+      {(!cryptoData || !fiatData) && isBrowser && (
+        <Suspense>
+          <ErrorToast />
+        </Suspense>
+      )}
+
     </div>
     )
 }
