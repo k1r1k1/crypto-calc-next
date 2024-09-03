@@ -4,12 +4,13 @@ interface Props {
   handleChange: (e: any) => void
   value: string;
   items: [Crypto] | [Currency];
+  label: string;
 }
 
-const Select = ({ handleChange, value, items }: Props) => {
+const Select = ({ handleChange, value, items, label }: Props) => {
   return (
   <div className="mb-3 w-25">
-    <label htmlFor="disabledSelect" className="form-label">Pick crypto</label>
+    <label htmlFor="disabledSelect" className="form-label">{label}</label>
     <select
       id="select"
       className="form-select"

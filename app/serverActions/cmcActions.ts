@@ -10,7 +10,9 @@ export async function getCryptos(_: any, fiat: string | undefined) {
   })
     .then(resp => resp.json())
     .then(resp => resp.data)
-    .catch(e => e)
+    .catch(e => {
+      console.log('ERROR', console.log(e))
+    })
 }
 
 export async function getFiat() {
@@ -19,5 +21,7 @@ export async function getFiat() {
   })
     .then(resp => resp.json())
     .then(resp => resp.data)
-    .catch(e => e)
+    .catch(e => {
+      console.log('ERROR', console.log(e))
+    })
 }
